@@ -1,164 +1,79 @@
-# src/data_processing.py
-
 import pandas as pd
-import numpy as np
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.preprocessing import OneHotEncoder, StandardScaler, LabelEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from datetime import datetime
 
 
-class DateFeatureExtractor(BaseEstimator, TransformerMixin):
+def preprocess_raw_data(df: pd.DataFrame):
     """
-    Extracts date features from a datetime column.
+    Full preprocessing pipeline:
+    - Handle datetimes
+    - Extract hour/day/month/year
+    - Remove non-informative columns
+    - Apply scaling + OHE
     """
-    def __init__(self, datetime_col="TransactionStartTime"):
-        self.datetime_col = datetime_col
 
-    def fit(self, X, y=None):
-        return self
+    df = df.copy()
 
-    def transform(self, X):
-        df = X.copy()
-        df[self.datetime_col] = pd.to_datetime(df[self.datetime_col], errors="coerce")
+    # Ensure timestamp is parsed
+    df["TransactionStartTime"] = pd.to_datetime(df["TransactionStartTime"])
 
-        df["transaction_hour"] = df[self.datetime_col].dt.hour
-        df["transaction_day"] = df[self.datetime_col].dt.day
-        df["transaction_month"] = df[self.datetime_col].dt.month
-        df["transaction_year"] = df[self.datetime_col].dt.year
+    # Time features
+    df["trans_hour"] = df["TransactionStartTime"].dt.hour
+    df["trans_day"] = df["TransactionStartTime"].dt.day
+    df["trans_month"] = df["TransactionStartTime"].dt.month
+    df["trans_year"] = df["TransactionStartTime"].dt.year
 
-        return df.drop(columns=[self.datetime_col])
+    # Drop unused columns (ID + timestamp)
+    drop_cols = [
+        "TransactionId", "BatchId", "SubscriptionId",
+        "TransactionStartTime", "ProductId"
+    ]
+    df = df.drop(columns=drop_cols, errors="ignore")
 
+    # Numerical & categorical
+    numeric_features = [
+        "Amount",
+        "Value",
+        "trans_hour", "trans_day", "trans_month", "trans_year"
+    ]
 
-class CustomerAggregator(BaseEstimator, TransformerMixin):
-    """
-    Aggregates transaction-level data into customer-level behavioral features.
-    """
-    def __init__(self, id_col="CustomerId", amount_col="Amount", value_col="Value"):
-        self.id_col = id_col
-        self.amount_col = amount_col
-        self.value_col = value_col
+    categorical_features = [
+        "AccountId", "CustomerId", "CurrencyCode", "CountryCode",
+        "ProviderId", "ProductCategory", "ChannelId",
+        "PricingStrategy", "FraudResult"
+    ]
 
-    def fit(self, X, y=None):
-        return self
+    # Column Transformer
+    numeric_transformer = Pipeline(
+        steps=[("scaler", StandardScaler())]
+    )
 
-    def transform(self, X):
-        df = X.copy()
-
-        agg_df = df.groupby(self.id_col).agg({
-            self.amount_col: ["sum", "mean", "std", "count"],
-            self.value_col: ["sum", "mean"]
-        })
-
-        agg_df.columns = [
-            "total_amount",
-            "avg_amount",
-            "std_amount",
-            "transaction_count",
-            "total_value",
-            "avg_value"
-        ]
-
-        agg_df = agg_df.reset_index()
-        return agg_df
-
-
-class LabelEncoderTransformer(BaseEstimator, TransformerMixin):
-    """
-    Applies Label Encoding to selected categorical columns.
-    Suitable for high-cardinality columns.
-    """
-    def __init__(self, columns):
-        self.columns = columns
-        self.encoders = {}
-
-    def fit(self, X, y=None):
-        for col in self.columns:
-            le = LabelEncoder()
-            X[col] = X[col].astype(str)
-            le.fit(X[col])
-            self.encoders[col] = le
-        return self
-
-    def transform(self, X):
-        X = X.copy()
-        for col in self.columns:
-            X[col] = X[col].astype(str)
-            X[col] = self.encoders[col].transform(X[col])
-        return X
-
-
-def build_feature_pipeline():
-
-    date_pipeline = Pipeline([
-        ("extract_dates", DateFeatureExtractor("TransactionStartTime"))
-    ])
-
-    # Low-cardinality categorical columns for OneHotEncoding
-    categorical_cols_ohe = ["CurrencyCode", "ChannelId", "ProductCategory", "PricingStrategy"]
-
-    # High-cardinality columns for Label Encoding
-    categorical_cols_label = ["ProviderId", "ProductId"]
-
-    numeric_cols = ["Amount", "Value"]
-
-    numeric_pipeline = Pipeline([
-        ("impute", SimpleImputer(strategy="median")),
-        ("scale", StandardScaler())
-    ])
-
-    categorical_ohe_pipeline = Pipeline([
-        ("impute", SimpleImputer(strategy="most_frequent")),
-        ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
-    ])
-
-    # LabelEncoderTransformer handles high-cardinality encodings
-    label_encoding = LabelEncoderTransformer(columns=categorical_cols_label)
+    categorical_transformer = Pipeline(
+        steps=[("encoder", OneHotEncoder(handle_unknown="ignore"))]
+    )
 
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_pipeline, numeric_cols),
-            ("cat_ohe", categorical_ohe_pipeline, categorical_cols_ohe)
-        ],
-        remainder="passthrough"
+            ("num", numeric_transformer, numeric_features),
+            ("cat", categorical_transformer, categorical_features),
+        ]
     )
 
-    full_pipeline = Pipeline([
-        ("date_features", date_pipeline),
-        ("label_encoding", label_encoding),
-        ("preprocessing", preprocessor)
-    ])
+    # Fit + Transform
+    transformed = preprocessor.fit_transform(df)
 
-    return full_pipeline
+    # Get OHE output names dynamically
+    ohe = preprocessor.named_transformers_["cat"].named_steps["encoder"]
+    ohe_cols = list(ohe.get_feature_names_out(categorical_features))
 
+    # Full column list
+    processed_col_names = numeric_features + ohe_cols
 
-def preprocess_raw_data(df):
-    """
-    Performs full preprocessing on raw transaction data.
-    Does NOT aggregate yet; used for model input preparation.
-    """
-    pipeline = build_feature_pipeline()
-    transformed = pipeline.fit_transform(df)
+    # Build final DataFrame
+    processed_df = pd.DataFrame(transformed.toarray(), columns=processed_col_names)
 
-    processed_col_names = (
-        ["Amount_scaled", "Value_scaled"]
-        + list(pipeline.named_steps["preprocessing"].transformers_[1][1]
-        .named_steps["ohe"].get_feature_names_out(["CurrencyCode", "ChannelId", "ProductCategory", "PricingStrategy"]))
-        + ["ProviderId_encoded", "ProductId_encoded"]
-        + ["transaction_hour", "transaction_day", "transaction_month", "transaction_year"]
-        + ["CustomerId", "BatchId", "SubscriptionId", "CountryCode", "FraudResult"]
-    )
+    # Include original index to merge later
+    processed_df["CustomerId"] = df["CustomerId"].values
 
-    processed_df = pd.DataFrame(transformed, columns=processed_col_names)
     return processed_df
-
-
-def create_customer_aggregate_features(df):
-    """
-    Aggregates per-customer features for modeling.
-    """
-    transformer = CustomerAggregator()
-    return transformer.transform(df)
-
