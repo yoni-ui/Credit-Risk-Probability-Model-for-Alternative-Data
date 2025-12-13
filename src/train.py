@@ -41,21 +41,6 @@ def prepare_training_data(df_raw):
     return final_df
 
 
-def split_data(df, target_col="is_high_risk", test_size=0.2, random_state=42):
-    """Split processed dataset into train and test sets."""
-
-    columns_to_drop = [
-        target_col,
-        "CustomerId",   # prevent leakage
-    ]
-
-    # X = all features except target + ID
-    X = df.drop(columns=columns_to_drop, errors="ignore")
-
-    # y = target variable
-    y = df[target_col]
-
-    return train_test_split(X, y, test_size=test_size, random_state=random_state)
 
 
 

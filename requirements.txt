@@ -42,3 +42,11 @@ gunicorn
 # Notebook
 jupyter
 
+# FastAPI/Deployment
+fastapi
+uvicorn[standard]
+pydantic
+
+# Code Quality (Choose one: flake8 is lightweight, black is opinionated auto-formatter)
+flake8
+pytest
