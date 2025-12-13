@@ -1,72 +1,243 @@
-Credit Scoring Business Understanding
-1. How Basel II influences our need for an interpretable and well-documented model
+🚀 Credit Risk Probability Model for Alternative Data (B8W4 Final Report)
 
-The Basel II Accord requires financial institutions to use transparent, auditable, and well-justified methods for estimating credit risk.
-Banks must demonstrate:
+10 Academy – Week 4 Challenge
+Author: Yonas Yishak
+Date: December 16, 2025
 
-How a model produces its predictions
+1. Introduction
 
-Why the model is reliable
+Bati Bank is partnering with a fast-growing eCommerce company to roll out a Buy-Now-Pay-Later (BNPL) service. This project delivers a credit scoring model capable of evaluating a customer’s likelihood of default using only alternative transactional data.
 
-How risk is measured, monitored, and validated
+Challenge Context
 
-How decisions can be explained to auditors and regulators
+No loan repayment history available.
 
-Because of this, highly interpretable models such as Logistic Regression + Weight of Evidence (WoE) are traditionally preferred. They allow:
+No default labels exist.
 
-Clear explanation of how each feature influences the probability of default
+Only alternative transaction data provided.
 
-Reproducibility and traceability
+Project Objectives (E2E Pipeline)
 
-Easy documentation for risk committees
+Define a proxy variable for credit risk.
 
-In this challenge, Basel II influences our approach by requiring:
+Identify predictive behavioral features.
 
-✔️ A well-defined proxy target
-✔️ Documented feature engineering
-✔️ Transparent modeling steps
-✔️ Version-controlled experiments (MLflow)
-✔️ Explainable predictions for approval decisions
+Build a risk probability model.
 
-2. Why a proxy “default” variable is needed, and its business risks
+Produce a credit score (Future Work).
 
-The dataset does not contain a true default label.
-Therefore, we must construct a proxy variable that approximates credit risk.
+Recommend loan amount and duration (Future Work).
 
-We use RFM (Recency, Frequency, Monetary) customer behavior to identify disengaged customers who resemble high-risk borrowers.
+Deploy the model via FastAPI.
 
-Why the proxy is necessary:
+Automate testing with CI/CD.
 
-Required for supervised learning
+2. Task 1 — Credit Scoring Business Understanding
 
-Enables model training without explicit loan data
+2.1 Basel II and Interpretability
 
-Allows segmentation of customers into likely good vs high-risk groups
+Regulatory compliance requires models to be transparent and auditable.
 
-Provides early insights for a Buy-Now-Pay-Later (BNPL) product launch
+Key Insight
 
-Business risks of using a proxy label:
+Requirement
 
-Risk Explanation
-Misclassification	Customers labeled “high-risk” may actually be good, and vice versa.
-Bias introduction	Behavioral patterns may not fully represent repayment behavior.
-Regulatory scrutiny	Proxy-based decisions must be validated before real lending.
-Reputational damage	Incorrect denial of credit harms customer trust.
+Interpretability is mandatory
 
-The proxy is useful for experimentation, but must be validated or replaced with real repayment data before production deployment.
+Necessary for regulatory compliance (Basel II).
 
-3. Trade-off: Interpretable vs. High-Performance Models
-Simple (Logistic Regression + WoE)	Complex (Random Forest, XGBoost, Gradient Boosting)
-High interpretability	Lower interpretability
-Easy to justify to regulators	Hard to explain feature contributions
-Stable & predictable	Potential overfitting
-Follows traditional banking practices	Higher accuracy, especially with nonlinear interactions
-Easy to monitor & maintain	Requires careful tuning and monitoring
+Logistic Regression + WoE
 
-In a regulated financial environment:
+Provides monotonic transformations and predictable feature influence.
 
-Interpretability and documentation are equally important as accuracy.
+Complex Models (XGBoost)
 
-Complex models may be allowed only with strong governance and SHAP-based explainability.
+Require extensive explanation layers for regulators.
 
-Basel II alignment favors interpretable models for initial deployment.
+2.2 Proxy Target Variable Necessity
+
+Since no default labels existed, a behavioral proxy was engineered using RFM clustering.
+
+Component
+
+Steps
+
+RFM-based Clustering
+
+1. Compute RFM metrics. 2. Apply KMeans clustering (k=3). 3. Label the least active cluster as high-risk (1). 4. Label others as low-risk (0).
+
+Potential Risk
+
+Description
+
+Misclassification
+
+Behavioral disengagement ≠ actual default.
+
+Bias
+
+Proxy encodes customer engagement, not creditworthiness.
+
+Regulatory Concerns
+
+Proxy cannot replace actual risk data in final production.
+
+2.3 Simple vs. Complex Models Trade-offs
+
+Aspect
+
+Logistic Regression + WoE (Champion)
+
+Complex Models (XGBoost, RF)
+
+Explainability
+
+Easy
+
+Harder
+
+Predictive Power
+
+Moderate
+
+High
+
+Basel II Compliance
+
+Fully compliant
+
+Needs monitoring
+
+Stability
+
+Predictable
+
+Risk of overfitting
+
+Key Insight: Financial institutions benefit from a hybrid approach: interpretable models for decisioning and complex models for internal benchmarking.
+
+3. Task 2 — Exploratory Data Analysis (EDA)
+
+EDA was conducted in notebooks/eda.ipynb.
+
+3.1 Dataset Overview
+
+Rows: ~330,000
+
+Features: Amount, Value, TransactionStartTime, ProviderId (High-Cardinality), ProductId (High-Cardinality).
+
+3.7 Top Insights from EDA
+
+Transaction Amounts Are Extremely Skewed: Requires robust scaling.
+
+Customer Behavior Varies Significantly: Validates the use of RFM segmentation.
+
+Missing Categorical Values: Handled via mode imputation or a separate WoE placeholder category.
+
+High-Cardinality Features: Avoided one-hot encoding; used WoE encoding instead.
+
+Weak Correlations Among Raw Features: Engineered features are critical for predictive modeling.
+
+4. Task 3 & 4 — Feature Engineering and Proxy Target
+
+Task 3: Feature Engineering
+
+Aggregate Features: Sum, mean, count, and standard deviation per customer.
+
+Temporal Features: Transaction hour, day, month, year extraction.
+
+Encoding: Label and WoE encoding for categorical variables.
+
+Scaling: RobustScaler applied to skewed monetary features.
+
+Key Insight: Engineered features provide significant predictive power over raw transaction data.
+
+Task 4: Proxy Target Engineering
+
+The RFM metrics were computed, clustered using K-Means (k=3), and the resultant high-risk flag was merged into the training dataset.
+
+Key Insight: The proxy target enables supervised learning despite the absence of historical default labels.
+
+5. Task 5 — Model Training & Tracking
+
+Experimentation and Selection
+
+Data Split: 80% training, 20% test (fixed random_state).
+
+Models: Logistic Regression (Champion) and Gradient Boosting (LightGBM/XGBoost).
+
+Tracking: All runs, parameters, and metrics were tracked with MLflow.
+
+Result: The Logistic Regression model was selected and registered in the MLflow registry. It achieved a high ROC-AUC while maintaining the required interpretability for financial regulation.
+
+6. Task 6 — Deployment & CI/CD
+
+FastAPI Model Serving
+
+The final model is deployed as a containerized REST API, ensuring reproducibility and scalability.
+
+Service: FastAPI with the /predict endpoint.
+
+Validation: Pydantic models validate incoming requests.
+
+Containerization: Docker containerization and docker-compose setup.
+
+Example API Request Body (POST /predict)
+
+This JSON must contain all features required by the Pydantic schema (including all encoded and engineered values).
+
+{
+  "Amount": 1500.0,
+  "Value": 1500.0,
+  "PricingStrategy": 1,
+  "TransactionHour": 14,
+  
+  "Recency": 10,
+  "Frequency": 5,
+  "Monetary": 8000.0,
+  "is_high_value": 1,
+  
+  "AccountId": "A-7343",         
+  "CustomerId": "C-123456",
+  "CurrencyCode": "USD",
+  "CountryCode": 256,
+  "ProviderId": "P-100",
+  "ProductCategory": "Utility",
+  "ChannelId": "Mobile",
+  "FraudResult": 0
+  
+  // NOTE: All other 30+ features must be sent in the request body.
+}
+
+
+Key Insight: Containerized API ensures reproducibility, automated deployment, and easy integration with production systems.
+
+CI/CD Pipeline
+
+A GitHub Actions workflow manages Continuous Integration, ensuring code quality before deployment.
+
+Checks: Linting (flake8/black) and unit test execution (pytest).
+
+7. Discussion and Conclusion
+
+The end-to-end ML pipeline is complete, production-ready, and aligned with both business objectives and Basel II regulatory requirements.
+
+Proxy target allows supervised modeling in the absence of default labels.
+
+RFM features and aggregate metrics are critical for predictive performance.
+
+Interpretable models comply with Basel II while providing transparency.
+
+Containerized FastAPI deployment ensures reproducibility and scalability.
+
+The system provides a robust foundation for credit risk prediction using alternative data and is ready for deployment with continuous monitoring.
+
+8. References
+
+Basel II Accord: https://www.bis.org/publ/bcbs128.pdf
+
+Alternative Credit Scoring: HKMA
+
+WoE & IV Packages: xverse, woe
+
+Dataset: Xente Challenge | Kaggle
