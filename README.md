@@ -47,7 +47,7 @@ Provides early insights for a Buy-Now-Pay-Later (BNPL) product launch
 
 Business risks of using a proxy label:
 
-Risk	Explanation
+Risk Explanation
 Misclassification	Customers labeled “high-risk” may actually be good, and vice versa.
 Bias introduction	Behavioral patterns may not fully represent repayment behavior.
 Regulatory scrutiny	Proxy-based decisions must be validated before real lending.
