@@ -1,0 +1,52 @@
+# Core Data & ML
+pandas
+numpy
+scikit-learn
+scipy
+
+# Visualization (EDA)
+matplotlib
+seaborn
+
+# MLflow for experiment tracking & model registry
+mlflow
+
+# Clustering (KMeans is in sklearn)
+# No extra libraries needed
+
+# Feature Engineering (optional WoE tools)
+xverse
+scorecardpy
+
+# API Serving
+fastapi
+uvicorn[standard]
+pydantic
+
+# Model Serialization
+joblib
+
+# Logging
+python-dotenv
+
+# Testing
+pytest
+
+# Linting & Formatting
+flake8
+black
+
+# Docker & Production Tools
+gunicorn
+
+# Notebook
+jupyter
+
+# FastAPI/Deployment
+fastapi
+uvicorn[standard]
+pydantic
+
+# Code Quality (Choose one: flake8 is lightweight, black is opinionated auto-formatter)
+flake8
+pytest
